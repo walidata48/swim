@@ -15,6 +15,7 @@ import sqlite3
 from flask import Flask, render_template, session
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
+import dash
 
 app = dash.Dash(
     "Swimming Atlet",
