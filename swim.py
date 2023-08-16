@@ -1,8 +1,8 @@
 from argparse import Action
 from pydoc import classname
 from tkinter.ttk import Style
-from app import app
-from app import server
+#from app import app
+#from app import server
 import flask
 import json
 from dash import html, dcc, callback, Input, Output, State
@@ -16,7 +16,15 @@ from flask import Flask, render_template, session
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 
-
+app = dash.Dash(
+    "Swimming Atlet",
+    external_stylesheets=[dbc.themes.BOOTSTRAP],
+)
+server = app.server
+app.config.suppress_callback_exceptions = True
+app.title = "Swimming Club"
+app.description = """A dashboard to display price indicators for Bitcoin, 
+                  Ethereum, Ripple, and Bitcoin-cash."""
 log_form = html.Div([
     
     html.Form([
