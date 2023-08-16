@@ -1,6 +1,7 @@
 dash
 dash-auth
 dash-core-components
+dash-bootstrap-components
 dash-daq
 dash-html-components
 dash-renderer
