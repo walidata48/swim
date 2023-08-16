@@ -1,0 +1,221 @@
+from pydoc import classname
+from tkinter.ttk import Style
+from app import app
+from app import server
+import flask
+import json
+from dash import html, dcc, callback, Input, Output, State
+import dash_daq as daq
+from datetime import datetime
+from dash import dash_table
+import pandas as pd
+from users import users_info
+import sqlite3
+from flask import Flask, render_template, session
+import dash_bootstrap_components as dbc
+from dash.exceptions import PreventUpdate
+
+sqliteConnection = sqlite3.connect('datas.db')
+cursor = sqliteConnection.cursor()
+cursor.execute('SELECT * FROM data ')
+row = cursor.fetchall()
+user_pwd = dict(row)
+sqliteConnection.close()
+
+
+log_form = html.Div([
+    html.H2('Welcome CSA Atlet'),
+    html.Form([
+        #dbc.Input(placeholder='username', name='username', type="text", style={'margin-bottom': '15px'}, className='field'),
+        #dbc.Input(placeholder='password', name='password', type="password", style={'margin-bottom': '15px'}, className='field'),
+        html.Div(dcc.Input(placeholder="username", name="username", type="text"),),
+        html.Div(dcc.Input(placeholder="password", name="password", type="password"),),
+        html.Button("Login", type="submit", )
+    ] , action="/login", method="post",), 
+], )
+
+user_pwda, user_names = users_info()
+
+_app_route = "/"
+
+
+# Create a login route
+@app.server.route("/login", methods=["POST"])
+def route_login():
+    data = flask.request.form
+    username = data.get("username")
+    password = data.get("password")
+
+    if username not in user_pwd.keys() or user_pwd[username] != password:
+        return flask.redirect("/login")
+    else:
+
+        # Return a redirect with
+        rep = flask.redirect(_app_route)
+
+        # Here we just store the given username in a cookie.
+        # Actual session cookies should be signed or use a JWT token.
+        rep.set_cookie("custom-auth-session", username)
+        return rep
+
+
+# Simple dash component login form.
+login_form = html.Div(
+    [
+        html.Form(
+            [
+                dcc.Input(placeholder="username", name="username", type="text"),
+                dcc.Input(placeholder="password", name="password",
+                          type="password"),
+                html.Button("Login", type="submit"),
+            ],
+            action="/login",
+            method="post",
+        )
+    ]
+)
+
+reg_form = html.Div([
+    html.H2('Registrasi'),
+    html.Form([
+        html.Div(dcc.Input(id = 'newname', placeholder="name", name="username", type="text"),),
+        html.Div(dcc.Input(id = 'tgl', placeholder="tanggal lahir", name="username", type="text"),),
+        html.Div(dcc.Input(id = 'newuser', placeholder="username", name="username", type="text"),),
+        html.Div(dcc.Input(id = 'newpass', placeholder="password", name="password", type="password"),),
+        html.Div(id='zero'),
+        html.Button("Regist", type="submit", id='register')
+    ] , action="/login", method="post",), 
+], )
+
+form = dbc.Container(
+    dbc.Row([
+        dbc.Col(
+            reg_form
+            )
+                 ,
+        dbc.Col(log_form, )
+    ])
+)
+
+
+
+# create a logout route
+@app.server.route("/logout", methods=["POST"])
+def route_logout():
+    # Redirect back to the index and remove the session cookie.
+    rep = flask.redirect("/login")
+    rep.set_cookie("custom-auth-session", "", expires=0)
+    return rep
+
+
+app.layout = html.Div(
+    [
+        html.H1(
+            "Cilegon Swimming Pool Team",
+ 
+        ),
+        html.Div(id="custom-auth-frame"),  # Input for buttons
+        html.Div(
+            className="auth",
+            id="custom-auth-frame-1",  # Output after Login or Logout
+            style={"textAlign": "right",
+                   "background": "black",
+                   },
+        ),
+        #dcc.Dropdown(['NYC', 'MTL', 'SF'], 'NYC', id='demo-dropdown'),
+        html.Div(id="graph-output", className="graph-display"),
+        #reg_form,
+        html.H2(id='out')
+    ],
+    
+)
+
+
+@app.callback(
+       # Output('out', 'children'),
+        Output("custom-auth-frame-1", "children"),
+        Output("graph-output", "children"),
+        Input("out", "children"), 
+)
+def render_content(start):
+    session_cookie = flask.request.cookies.get("custom-auth-session")
+
+    if not session_cookie:
+        # If there's no cookie we need to login.
+        return [
+            form,
+            
+            login_form,
+            
+        ]
+    else:
+        logout_output = html.Div(
+            children=[
+                html.Div(
+                    html.H3("Hello {} !".format(session_cookie)),
+                    style={"display": "inline-block"},
+                ),
+                html.Div(
+                    dcc.LogoutButton(logout_url="/logout"),
+                    style={"display": "inline-block"},
+                ),
+            ],
+            style={"color": "green", "height": "50px"},
+        )
+        
+        name_input = dbc.Row([dbc.Col(dbc.Input(id = 'name', placeholder=f"[{session_cookie}", className='field' ), ), ], className="mb-3",)
+        lomba = dbc.Container(dbc.Row([dbc.Col([html.H3('Daftar Lomba', style={'margin-bottom': '15px'}, className='text-center'), dbc.Input(id = 'id_solved', placeholder=f"{session_cookie}", style={'margin-bottom': '15px'}, className='field'), dcc.Dropdown( id='dropdown_parameter', options=['Bebas', 'Kupu-kupu', 'Punggung',], value='pH', style={'margin-bottom': '15px'} ), dbc.Button(id ='submit_solved', children = 'Submit', n_clicks = 0 )], className='form')
+                 ,
+                 ], className='g-2 mt-5'))
+        return logout_output, lomba
+    
+
+@app.callback(
+       
+        Output("id_solved", "value"),
+        Input("submit_solved", "n_clicks"),
+        State('dropdown_parameter', 'value'),
+        
+        prevent_initial_call=True 
+)
+def render_content(start,lomba):
+    name = flask.request.cookies.get("custom-auth-session")
+
+
+    with sqlite3.connect("datas.db") as con:
+           
+      cur = con.cursor()
+      cur.execute("insert into regist (name, lomba) values (?,?)", (name, lomba))
+      con.commit()
+      
+    return "1"
+
+
+@app.callback(
+       
+        Output("zero", "children"),
+        Input("register", "n_clicks"),
+        State('newname', 'value'),
+        State('tgl', 'value'),
+        State('newuser', 'value'),
+        State('newpass', 'value'),
+        
+        prevent_initial_call=True 
+)
+def render_content(start, names, tgl, newuser, newpass):
+    name = flask.request.cookies.get("custom-auth-session")
+
+    with sqlite3.connect("datas.db") as con:
+          
+      cur = con.cursor()
+      cur.execute("insert into newuser (name, tgl, username, password) values (?,?,?,?)", (names, tgl, newuser, newpass))
+      con.commit()
+      
+    return ""
+
+
+if __name__ == "__main__":
+    app.run_server(debug=True, )
+
+
+

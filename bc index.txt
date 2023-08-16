@@ -1,0 +1,241 @@
+from app import app
+from app import server
+import flask
+import json
+from dash import html, dcc, callback, Input, Output
+import dash_daq as daq
+from datetime import datetime
+from dash import dash_table
+import pandas as pd
+from users import users_info
+import sqlite3
+from flask import Flask, render_template, session
+
+
+
+sqliteConnection = sqlite3.connect('datas.db')
+cursor = sqliteConnection.cursor()
+cursor.execute('SELECT * FROM data ')
+row = cursor.fetchall()
+user_pwd = dict(row)
+sqliteConnection.close()
+
+coin_list = ["bitcoin", "ethereum", "ripple", "bitcoin-cash"]
+
+colors = {"background": "white", "background2": "#D0D3D4", "text": "#263a90"}
+tabs_styles = {"height": "51px"}
+tab_style = {
+    "borderBottom": "1px solid #d6d6d6",
+    "padding": "2px",
+    "fontWeight": "bold",
+    "vertical-align": "middle",
+}
+
+tab_selected_style = {
+    "borderTop": "1px solid #d6d6d6",
+    "borderBottom": "1px solid #d6d6d6",
+    "backgroundColor": "white",
+    "color": "blue",
+    "padding": "5px",
+    "font-size": 15,
+}
+
+y_axis = {
+    "title": "Price",
+    "showspikes": True,
+    "spikedash": "dot",
+    "spikemode": "across",
+    "spikesnap": "cursor",
+}
+
+x_axis = {
+    "title": "Time",
+    "showspikes": True,
+    "spikedash": "dot",
+    "spikemode": "across",
+    "spikesnap": "cursor",
+}
+
+user_pwda, user_names = users_info()
+
+_app_route = "/"
+
+
+# Create a login route
+@app.server.route("/login", methods=["POST"])
+def route_login():
+    data = flask.request.form
+    username = data.get("username")
+    password = data.get("password")
+
+    if username not in user_pwd.keys() or user_pwd[username] != password:
+        return flask.redirect("/login")
+    else:
+
+        # Return a redirect with
+        rep = flask.redirect(_app_route)
+
+        # Here we just store the given username in a cookie.
+        # Actual session cookies should be signed or use a JWT token.
+        rep.set_cookie("custom-auth-session", username)
+        return rep
+
+
+# Simple dash component login form.
+login_form = html.Div(
+    [
+        html.Form(
+            [
+                dcc.Input(placeholder="username", name="username", type="text"),
+                dcc.Input(placeholder="password", name="password",
+                          type="password"),
+                html.Button("Login", type="submit"),
+            ],
+            action="/login",
+            method="post",
+        )
+    ]
+)
+
+reg_form = html.Div(
+    [
+        html.Form(
+            [
+                dcc.Input(id='user', placeholder="username", name="username", type="text"),
+                dcc.Input(id='password', placeholder="password", name="password",
+                          type="password"),
+                html.Button("Reg", type="submit"),
+            ],
+            
+            )
+    ]
+)
+
+# create a logout route
+@app.server.route("/logout", methods=["POST"])
+def route_logout():
+    # Redirect back to the index and remove the session cookie.
+    rep = flask.redirect("/login")
+    rep.set_cookie("custom-auth-session", "", expires=0)
+    return rep
+
+
+app.layout = html.Div(
+    [
+        html.H1(
+            "Cilegon Swimming Pool Team",
+            style={"textAlign": "center",
+                   "color": "white",
+                   # "background": "yellow"
+                   },
+        ),
+        html.Div(id="custom-auth-frame"),  # Input for buttons
+        html.Div(
+            className="auth",
+            id="custom-auth-frame-1",  # Output after Login or Logout
+            style={"textAlign": "right",
+                   "background": "black",
+                   },
+        ),
+        dcc.DatePickerRange(
+                    id="date-input",
+                    stay_open_on_select=False,
+                    min_date_allowed=datetime(2013, 4, 28),
+                    max_date_allowed=datetime.now(),
+                    initial_visible_month=datetime.now(),
+                    start_date=datetime(2019, 1, 1),
+                    end_date=datetime.now(),
+                    number_of_months_shown=2,
+                    month_format="MMMM,YYYY",
+                    display_format="YYYY-MM-DD",
+                    style={
+                        "color": "#11ff3b",
+                        "font-size": "18px",
+                        "margin": 0,
+                        "padding": "8px",
+                        "background": "yellow",
+                    },
+                ),
+        html.Div(id="graph-output", className="graph-display"),
+        reg_form,
+        html.H2(id='out')
+    ],
+    style={"background": "#000080"},
+)
+
+
+@app.callback(
+       # Output('out', 'children'),
+        Output("custom-auth-frame-1", "children"),
+        Output("graph-output", "children"),
+        Input("date-input", "start_date"),
+        Input("date-input", "end_date")
+    
+)
+def render_content(start_date, end_date):
+    session_cookie = flask.request.cookies.get("custom-auth-session")
+
+    if not session_cookie:
+        # If there's no cookie we need to login.
+        return [
+            html.Div(
+                html.H2('WKWKW', id='h2',
+                    ),
+                style={"textAlign": "center", "color": "red"},
+            ),
+            
+            login_form,
+            
+        ]
+    else:
+        logout_output = html.Div(
+            children=[
+                html.Div(
+                    html.H3("Hello {} !".format(session_cookie)),
+                    style={"display": "inline-block"},
+                ),
+                html.Div(
+                    dcc.LogoutButton(logout_url="/logout"),
+                    style={"display": "inline-block"},
+                ),
+            ],
+            style={"color": "green", "height": "50px"},
+        )
+        graph_output = ""
+        graph_output = html.Div(
+                [
+                    html.H3(
+                        dcc.Graph(
+                            id="SMA",
+                            figure={
+                                "data": [
+                                    {
+                                        "x": [1,2,3,4,5],
+                                        "y": [1,2,3,4,5],
+                                        "type": "line",
+                                        
+                                    },
+                                    
+                                ],
+                                "layout": {
+                                    "title": "Simple Moving Average",
+                                    "height": 700,
+                                    "xaxis": x_axis,
+                                    "yaxis": y_axis,
+                                    "plot_bgcolor": colors["background2"],
+                                    "paper_bgcolor": colors["background"],
+                                    "font": {"color": colors["text"],
+                                             "size": 18, },
+                                },
+                            },
+                        )
+                    )
+                ]
+            )
+        wel = html.Div(f'hello {session_cookie}')
+        
+        
+        return logout_output, graph_output
+
+if __name__ == "__main__":
+    app.run_server(debug=True)

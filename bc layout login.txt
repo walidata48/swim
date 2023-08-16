@@ -1,0 +1,12 @@
+form = dbc.Container(
+    dbc.Row([
+        dbc.Col(
+            [html.H3('Daftar Lomba', style={'margin-bottom': '15px'}, className='text-center'), dbc.Input(placeholder="Wow", style={'margin-bottom': '15px'}, className='field'), 
+             dcc.Dropdown(options=['Bebas', 'Kupu-kupu', 'Punggung',], value='pH', style={'margin-bottom': '15px'} ), 
+             dbc.Button(children = 'Submit', n_clicks = 0 )], className='form')
+                 ,
+        dbc.Col([html.H3('Daftar Lomba', style={'margin-bottom': '15px'}, className='text-center'), dbc.Input(placeholder="Wow", style={'margin-bottom': '15px'}, className='field'), 
+             dcc.Dropdown(options=['Bebas', 'Kupu-kupu', 'Punggung',], value='pH', style={'margin-bottom': '15px'} ), 
+             dbc.Button(children = 'Submit', n_clicks = 0 )], className='form')
+    ])
+)
